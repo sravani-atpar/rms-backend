@@ -1,0 +1,60 @@
+services:
+  db-app:
+    image: postgis/postgis:latest
+    restart: always
+    container_name: rms-db-app
+    volumes:
+      - db_app_data:/var/lib/postgresql/data
+      - ./init-postgis.sql:/docker-entrypoint-initdb.d/init-postgis.sql
+    environment:
+      POSTGRES_DB: ${APP_DB_NAME}
+      POSTGRES_USER: ${APP_DB_USER}
+      POSTGRES_PASSWORD: ${APP_DB_PASSWORD}
+    ports:
+      - "${APP_DB_PORT}:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: awd-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  backend:
+    image: shivain22/rms-backend:v0.1
+    container_name: rms-backend
+    environment:
+      # Spring Boot
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db-app:5432/${APP_DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${APP_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${APP_DB_PASSWORD}
+      SPRING_DATASOURCE_DRIVER: org.postgresql.Driver
+      SPRING_JPA_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+      SERVER_PORT: 8081
+      # Redis
+      spring.data.redis.host: redis
+      spring.data.redis.port: 6379
+      # Keycloak (provide these in .env if needed)
+      KEYCLOAK_AUTH_SERVER_URL: ${KEYCLOAK_AUTH_SERVER_URL}
+      KEYCLOAK_ADMIN_REALM: ${KEYCLOAK_ADMIN_REALM}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
+      KEYCLOAK_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_REALM_NAME: ${KEYCLOAK_REALM_NAME}
+      KEYCLOAK_REALM_CLIENT_ID: ${KEYCLOAK_REALM_CLIENT_ID}
+      KEYCLOAK_REALM_CLIENT_SECRET: ${KEYCLOAK_REALM_CLIENT_SECRET}
+      KEYCLOAK_JWK_SET_URI: ${KEYCLOAK_JWK_SET_URI}
+      KEYCLOAK_JWK_OPENID_TOKEN: ${KEYCLOAK_JWK_OPENID_TOKEN}
+    ports:
+      - "8081:8081"
+    depends_on:
+      - db-app
+      - redis
+    restart: unless-stopped
+
+volumes:
+  db_app_data:
+  redis_data:
+  maven_repo:
